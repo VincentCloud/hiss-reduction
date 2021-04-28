@@ -1,0 +1,78 @@
+clear 
+% ------------------ RECORDED NOISY SIGNAL -----------------------------
+window_size = 1024;
+overlapFactor = 0.5;
+fftLength = 1024;
+sigma = 1;
+mu = 0;
+
+
+
+[target_signal, fs_target_signal] = audioread('flute-alto-C.wav');
+
+noise = 0.1 * sigma * randn(1, size(target_signal, 1)) + mu;
+noisy_sig = target_signal' + noise;
+
+win = hamming(window_size);
+% stft(x, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', 1024);
+
+% spectrogram of the noisy signal
+[s_ns, f_ns, t_ns] = stft(noisy_sig, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+
+% %%
+% stft(noisy_sig, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+%%
+% figure(1)
+% stft(noisy_sig, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+
+% spectrogram of the noise
+[s_n, f_n, t_n] = stft(noise, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+% figure(2)
+% stft(noise, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+
+% the Wiener Solution
+
+transformed_s_ns_wiener = arrayfun(@(ns_one_cell, n_one_cell) (cell_wise_wiener(ns_one_cell, n_one_cell)), s_ns, s_n);
+transformed_s_ns_spectrum_subtraction = arrayfun(@(ns_one_cell, n_one_cell) (cell_wise_spectral_subtraction(ns_one_cell, n_one_cell)), s_ns, s_n);
+% transformed_s_ns = s_ns - s_n;
+% %%
+% 
+% find(transformed_s_ns_wiener(~isfinite(transformed_s_ns_wiener)));
+% 
+% transformed_s_ns_wiener = transformed_s_ns_wiener(~isnan(transformed_s_ns_wiener));
+% transformed_s_ns_spectrum_subtraction = transformed_s_ns_spectrum_subtraction(~isnan(transformed_s_ns_spectrum_subtraction));
+% 
+
+reconstructed_x_wiener_solution = istft(transformed_s_ns_wiener, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+% reconstructed_x = istft(transformed_s_ns);
+reconstructed_x_spectral_subtraction = istft(transformed_s_ns_spectrum_subtraction, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+
+subplot(2, 2, 1)
+plot(noisy_sig);
+title("Original signal");
+% xlim([1000 1200]);
+
+subplot(2, 2, 2)
+plot(noise);
+title("Noise");
+% xlim([1000 1200]);
+
+subplot(2, 2, 3)
+plot(reconstructed_x_wiener_solution);
+title("Reconstructed signal with Wiener Solution");
+% xlim([1000 1200]);
+
+subplot(2, 2, 4)
+plot(reconstructed_x_spectral_subtraction);
+title("Reconstructed signal with Spectral Subtraction");
+% xlim([1000 1200])
+
+
+%% 
+soundsc(reconstructed_x_wiener_solution, 44100);
+
+%% 
+soundsc(reconstructed_x_spectral_subtraction, 44100);
+
+%%
+soundsc(noisy_sig, 44100);

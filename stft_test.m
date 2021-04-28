@@ -1,0 +1,93 @@
+%%
+clear
+% Specify the configuration parameters
+
+% --------------------------GENERATED NOISY SIGNAL -----------------------------------------------------
+fs = 44100;
+L = 44100;
+n = 0:1:L-1;
+f = 400;
+window_size = 1024;
+overlapFactor = 0.5;
+mu = 0;
+sigma = 1;
+fftLength = 1024;
+
+
+% construct the signal and add noise to it
+x_noise = 0.4 * sigma * randn(1, L) + mu;
+% x_noise = ones(1, L);
+
+x_target = sin(2 * pi * n * f / fs) + sin(2 * pi * n * 2 * f / fs) + sin(2 * pi * n * 3 * f / fs);
+
+x = x_target + x_noise;
+
+x = (x - min(x)) / (max(x) - min(x));
+
+% [s, f, t] = stft(x);
+
+% obtain the power spectrogram of the noisy signal
+win = hamming(window_size);
+% stft(x, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', 1024);
+
+% spectrogram of the noisy signal
+[s_ns, f_ns, t_ns] = stft(x, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+% S_ns = mag2db(s_ns)
+
+% spectrogram of the noise
+[s_n, f_n, t_n] = stft(x_noise, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+% S_n = mag2db(S_ns)
+
+
+% the Wiener Solution
+
+transformed_s_ns_wiener = arrayfun(@(ns_one_cell, n_one_cell) (cell_wise_wiener(ns_one_cell, n_one_cell)), s_ns, s_n);
+transformed_s_ns_spectrum_subtraction = arrayfun(@(ns_one_cell, n_one_cell) (cell_wise_spectral_subtraction(ns_one_cell, n_one_cell)), s_ns, s_n);
+% transformed_s_ns = s_ns - s_n;
+
+reconstructed_x_wiener_solution = istft(transformed_s_ns_wiener, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+% reconstructed_x = istft(transformed_s_ns);
+reconstructed_x_spectral_subtraction = istft(transformed_s_ns_spectrum_subtraction, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', fftLength);
+
+subplot(2, 2, 1)
+plot(x);
+title("Original signal");
+xlim([1000 1200]);
+
+subplot(2, 2, 2)
+plot(x_noise);
+title("Noise");
+xlim([1000 1200]);
+
+subplot(2, 2, 3)
+plot(reconstructed_x_wiener_solution);
+title("Reconstructed signal with Wiener Solution");
+xlim([1000 1200]);
+
+subplot(2, 2, 4)
+plot(reconstructed_x_spectral_subtraction);
+title("Reconstructed signal with Spectral Subtraction");
+xlim([1000 1200])
+
+
+
+%% 
+figure(2)
+stft(reconstructed_x_wiener_solution, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', 1024);
+figure(3)
+stft(reconstructed_x_wiener_solution, 'Window', win, 'OverlapLength', window_size * overlapFactor, 'FFTLength', 1024);
+
+%% 
+soundsc(reconstructed_x_wiener_solution, 44100);
+
+%% 
+soundsc(reconstructed_x_spectral_subtraction, 44100);
+
+%%
+soundsc(x, 44100);
+
+
+
+
+
+
