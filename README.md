@@ -1,4 +1,4 @@
-# hiss-reduction
+# Hiss-reduction
 
 An attempt to achieve hiss reduction through different algorithmic, non-ML methods.
 
